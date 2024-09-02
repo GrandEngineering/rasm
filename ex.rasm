@@ -1,0 +1,17 @@
+// Simple Reflux Assembly aka rasm
+# Simple Comment
+// Simple Comment
+//define variables
+.define fib 0; //comment
+.define test 1;
+.define fib1 1;
+//load variables to registers
+ldi fib r0;
+ldi fib1 r1;
+nop;
+//fibonatch loop
+.label start;
+add r0 r1 r2;
+mov r1 r0;
+mov r2 r1;
+halt;
