@@ -110,7 +110,8 @@ impl Lexer {
                     "ldi" | "jmp" | "add" | "mov" | "nop" | "halt" => Token::Instruction(ident),
                     ".define" => Token::Define,
                     _ if ident.as_str().starts_with("r")
-                        && ident.len() == 2
+                        && ident.len() <= 2
+                        && ident.len()>1
                         && ident
                             .as_str()
                             .strip_prefix("r")
