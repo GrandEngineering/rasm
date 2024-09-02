@@ -10,6 +10,7 @@ pub enum Token {
     Label(String),
     Number(u8),
     Register(String),
+    Memory(String),
     Instruction(String),
     Comment(String),
     Semicolon,
@@ -124,6 +125,16 @@ impl Lexer {
                     .filter(|&n| n < 16)
                     .unwrap_or_else(|| panic!("Invalid register: {}", ident));
                 Token::Register(ident)
+            }
+            Some(c) if c.is_alphabetic() => {
+                let ident = self.read_identifier();
+                ident
+                    .to_string()
+                    .strip_prefix("r")
+                    .and_then(|s| s.parse::<usize>().ok())
+                    .filter(|&n| n < 16)
+                    .unwrap_or_else(|| panic!("Invalid register: {}", ident));
+                Token::Memory(ident)
             }
             None => Token::Eof,
             _ => {
