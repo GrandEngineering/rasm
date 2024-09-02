@@ -1,12 +1,16 @@
+use std::any::Any;
 use std::fs;
 use std::io;
 use std::u8;
+
+use lexer::Token;
 mod lexer;
 fn main() -> io::Result<()> {
     let mut reader = fs::read_to_string("ex.rasm")?;
     let mut program_memory: [u8; 128] = [0; 128];
     let mut registers: [u8; 16] = [0; 16];
     let mut lexer = lexer::Lexer::new(reader);
+    let mut argvbuf: [u8; 3] = [0; 3]; // argument buffer
     loop {
         let token = lexer.next_token();
         if token == lexer::Token::Eof {

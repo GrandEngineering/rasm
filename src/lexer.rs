@@ -109,6 +109,33 @@ impl Lexer {
                 match ident.as_str() {
                     "ldi" | "jmp" | "add" | "mov" | "nop" | "halt" => Token::Instruction(ident),
                     ".define" => Token::Define,
+                    _ if ident.as_str().starts_with("r")
+                        && ident.len() == 2
+                        && ident
+                            .as_str()
+                            .strip_prefix("r")
+                            .unwrap()
+                            .to_string()
+                            .parse::<u8>()
+                            .unwrap()
+                            < 16 =>
+                    {
+                        Token::Register(ident)
+                    }
+                    _ if ident.as_str().starts_with("m")
+                        && ident.len() <=4
+                        && ident.len() > 1
+                        && ident
+                            .as_str()
+                            .strip_prefix("m")
+                            .unwrap()
+                            .to_string()
+                            .parse::<u8>()
+                            .unwrap()
+                            < 128 =>
+                    {
+                        Token::Memory(ident)
+                    }
                     _ => Token::Identifier(ident),
                 }
             }
@@ -116,26 +143,7 @@ impl Lexer {
                 let number = self.read_number();
                 Token::Number(number)
             }
-            Some(c) if c.is_alphabetic() => {
-                let ident = self.read_identifier();
-                ident
-                    .to_string()
-                    .strip_prefix("r")
-                    .and_then(|s| s.parse::<usize>().ok())
-                    .filter(|&n| n < 16)
-                    .unwrap_or_else(|| panic!("Invalid register: {}", ident));
-                Token::Register(ident)
-            }
-            Some(c) if c.is_alphabetic() => {
-                let ident = self.read_identifier();
-                ident
-                    .to_string()
-                    .strip_prefix("r")
-                    .and_then(|s| s.parse::<usize>().ok())
-                    .filter(|&n| n < 16)
-                    .unwrap_or_else(|| panic!("Invalid register: {}", ident));
-                Token::Memory(ident)
-            }
+
             None => Token::Eof,
             _ => {
                 self.read_char(); // Skip unknown characters
