@@ -34,6 +34,39 @@ pub struct Program {
 }
 
 impl Program {
+    pub fn read_from_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        use std::fs::File;
+        use std::io::Read;
+
+        let mut file = File::open(path)?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)?;
+
+        let mut instructions = Vec::new();
+
+        // Process bytes in groups of 4 to reconstruct 32-bit instructions
+        for chunk in buffer.chunks(4) {
+            if chunk.len() == 4 {
+                let instruction = u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+                instructions.push(instruction);
+            } else {
+                // Handle potential partial chunk at the end
+                let mut bytes = [0u8; 4];
+                for (i, &byte) in chunk.iter().enumerate() {
+                    bytes[i] = byte;
+                }
+                let instruction = u32::from_le_bytes(bytes);
+                instructions.push(instruction);
+            }
+        }
+
+        Ok(Program {
+            instructions,
+            labels: HashMap::new(), // No label information in binary files
+            string_defs: HashMap::new(), // No string definitions in binary files
+        })
+    }
+
     pub fn write_to_file<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         let mut file = File::create(path)?;
         let bytes = self.as_bytes();

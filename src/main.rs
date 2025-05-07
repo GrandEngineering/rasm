@@ -1,11 +1,50 @@
 mod lexer;
-use std::io::Write;
-fn main() {
-    let insts = std::fs::read_to_string("ex.rasm").unwrap();
-    let n = lexer::Program::new(insts);
-    n.write_to_file("ex.bin").unwrap();
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::PathBuf,
+};
 
-    vm(n.get_instructions());
+use clap::Parser;
+use lexer::Program;
+
+#[derive(Parser, Debug)]
+#[command(name = "toycc")]
+#[command(about = "A toy compiler CLI", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum Commands {
+    /// Compile a source file
+    Compile {
+        /// Input source file
+        input: PathBuf,
+
+        #[arg(short, long)]
+        /// Output object file
+        output: PathBuf,
+    },
+    /// Uses the RASM VM to run your program
+    Run {
+        ///The compiled RASM Binary path
+        input: PathBuf,
+    },
+}
+fn main() {
+    let args = Cli::parse();
+    match args.command {
+        Commands::Compile { input, output } => {
+            let prgm = lexer::Program::new(std::fs::read_to_string(input).unwrap());
+            prgm.write_to_file(output).unwrap();
+        }
+        Commands::Run { input } => {
+            let prgm = Program::read_from_file(input).unwrap();
+            vm(prgm.get_instructions());
+        }
+    }
 }
 fn vm(insts: &Vec<u32>) {
     let mut stack_mem: [u8; 2] = [0u8; 2];
