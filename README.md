@@ -1,6 +1,4 @@
 # RASM
-A interpreted Asembly language for the harvard architecture. This project allows its emulation via Rust.
-The rusty Assembly is made for small systems, and is not intended to be used in large projects.
-
+A simple Rusty assembly language.
 ## Specs
-This languague is designer for an 1 byte op code 2 input bytes and 1 output byte. The program memory is 128 bytes and the registry memory is 16 bytes.
+This language is designer for an 1 byte op code and 3 arg bytes. The program memory is 2048 bytes and the registry memory is 256 bytes.

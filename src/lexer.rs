@@ -299,10 +299,10 @@ impl Program {
                     instruction = Self::encode_opcode(0x0E);
                     if parts.len() >= 3 {
                         // Check if we have the alternative syntax: LOD m0 R2
-                        if parts[1].starts_with('m') || parts[1].starts_with('M') {
+                        if parts[2].starts_with('m') || parts[2].starts_with('M') {
                             // Memory address first, register second
-                            instruction |= Self::parse_register(parts[2]) << 8;
-                            instruction |= Self::parse_memory_address(parts[1]) << 16;
+                            instruction |= Self::parse_register(parts[1]) << 8;
+                            instruction |= Self::parse_memory_address(parts[2]) << 16;
                         } else {
                             // Traditional syntax: LOD R2 0x42
                             instruction |= Self::parse_register(parts[1]) << 8;
@@ -357,7 +357,7 @@ impl Program {
     fn resolve_value_or_label(&self, value_str: &str) -> u32 {
         // Check if this is a label reference
         if let Some(&address) = self.labels.get(value_str) {
-            return (address as u32) & 0xFF;
+            return (address as u32) & 0xFFFF; // Remove the & 0xFF mask to allow full address range
         }
 
         // Otherwise, parse it as a numeric value
@@ -368,7 +368,7 @@ impl Program {
         let mem_str = mem_str.trim().to_uppercase();
         if mem_str.starts_with('M') {
             if let Ok(addr) = mem_str[1..].parse::<u32>() {
-                return addr & 0xFF; // 8-bit address
+                return addr & 0xFFFF; // 16-bit address instead of 8-bit
             }
         }
         println!(
@@ -396,7 +396,7 @@ impl Program {
         let reg_str = reg_str.trim().to_uppercase();
         if reg_str.starts_with('R') {
             if let Ok(reg_num) = reg_str[1..].parse::<u32>() {
-                if reg_num < 8 {
+                if reg_num < 256 {
                     return reg_num & 0xFF;
                 }
             }

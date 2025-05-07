@@ -1,9 +1,5 @@
 mod lexer;
-use std::{
-    fs::{self, File},
-    io::Write,
-    path::PathBuf,
-};
+use std::{io::Write, path::PathBuf};
 
 use clap::Parser;
 use lexer::Program;
@@ -49,7 +45,7 @@ fn main() {
 fn vm(insts: &Vec<u32>) {
     let mut stack_mem: [u8; 2] = [0u8; 2];
     let mut memory: [u8; 256] = [0u8; 256]; // Used like r0 to r255
-    let mut store: [u8; 1024] = [0u8; 1024];
+    let mut store: [u8; 65536] = [0u8; 65536];
     let mut program_mem: [u8; 2048] = [0u8; 2048]; // 512 lines of code
 
     const PRINT_CHAR_ADDR: usize = 2;
