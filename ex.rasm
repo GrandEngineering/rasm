@@ -4,4 +4,9 @@ LDI r1 53     # Load 53 (ASCII '5') into r1
 LDI r2 10      # PRINT_CHAR_ADDR
 STR r1 m2  # This should print '5'
 STR r2 m2
+STR r1 m65535
+LOD r6 m65535
+STR r6 m2
+STR r2 m2
 HALT
+BYTE
