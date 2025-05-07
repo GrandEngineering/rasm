@@ -1,10 +1,21 @@
-// Comment
-# Comment
-NOP
-LDI R0 1
-LDI R1 2
-label start
-ADD R0 R1 2
-STR R2 m0
-LOD m0 R2
-HALT
+#str hello "Hello, World!"
+#str goodbye "Goodbye!"
+
+# Start of program
+    LDI R0 0       # Initialize counter to 0
+
+LABEL loop_start
+    PRINT hello     # Print Hello World string
+    LDI R1 10      # Load newline character
+    STR R1 2       # Print newline (address 2 is special for printing)
+
+    ADI R0 1       # Increment our counter
+    LDI R1 3       # Loop 3 times
+    SUB R1 R0      # R1 = 3 - counter
+    BRH R1 loop_start  # If R1 is not zero, branch back to loop_start
+
+    PRINT goodbye   # Print goodbye message
+    LDI R1 10      # Load newline character
+    STR R1 2       # Print newline
+
+    HALT            # End program

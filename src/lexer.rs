@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::File,
     io::{self, Write},
     path::Path,
@@ -21,12 +22,15 @@ pub enum Token {
     RET,
     LOD,
     STR,
+    LABEL,
     BYTE(u8),
 }
 
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Program {
     instructions: Vec<u32>,
+    labels: HashMap<String, usize>,
+    string_defs: HashMap<String, String>, // New field to store string definitions
 }
 
 impl Program {
@@ -36,17 +40,48 @@ impl Program {
         file.write_all(&bytes)?;
         Ok(())
     }
+
     pub fn new(instructions: String) -> Self {
-        let mut program_instructions: Vec<u32> = Vec::new();
+        let mut program = Program {
+            instructions: Vec::new(),
+            labels: HashMap::new(),
+            string_defs: HashMap::new(),
+        };
+
+        // First pass: collect labels and string definitions
+        let mut current_address = 0;
 
         for line in instructions.lines() {
-            // Skip empty lines and comments
             let line = line.trim();
-            if line.is_empty() || line.starts_with("#") {
+            if line.is_empty() || line.starts_with("#") && !line.starts_with("#str") {
                 continue;
             }
 
-            // Split by whitespace and handle trailing comments
+            // Handle string definitions
+            if line.starts_with("#str") {
+                let after_directive = line[4..].trim();
+                let mut parts = after_directive.splitn(2, ' ');
+
+                if let (Some(tag), Some(content)) = (parts.next(), parts.next()) {
+                    let tag = tag.trim();
+                    let content = content.trim();
+
+                    // Find quoted string content
+                    if let (Some(start), Some(end)) = (content.find('"'), content.rfind('"')) {
+                        if start < end {
+                            let string_content = content[(start + 1)..end].to_string();
+                            println!(
+                                "Defined string tag '{}' with content: {}",
+                                tag, string_content
+                            );
+                            program.string_defs.insert(tag.to_string(), string_content);
+                        }
+                    }
+                }
+                continue;
+            }
+
+            // Handle comments and split into parts
             let parts: Vec<&str> = line
                 .split('#')
                 .next()
@@ -54,11 +89,94 @@ impl Program {
                 .trim()
                 .split_whitespace()
                 .collect();
+
             if parts.is_empty() {
                 continue;
             }
 
+            // Handle label declarations
+            if parts[0].to_uppercase() == "LABEL" && parts.len() >= 2 {
+                let label = parts[1].to_string();
+                program.labels.insert(label, current_address);
+                continue;
+            }
+
+            // Count normal instructions
+            current_address += 1;
+        }
+
+        // Second pass: assemble instructions
+        for line in instructions.lines() {
+            let line = line.trim();
+            if line.is_empty() || (line.starts_with("#") && !line.starts_with("#str")) {
+                continue;
+            }
+
+            // Skip string definitions in second pass
+            if line.starts_with("#str") {
+                continue;
+            }
+
+            // Split by comments
+            let parts: Vec<&str> = line
+                .split('#')
+                .next()
+                .unwrap()
+                .trim()
+                .split_whitespace()
+                .collect();
+
+            if parts.is_empty() {
+                continue;
+            }
+
+            // Skip label declarations in second pass
+            if parts[0].to_uppercase() == "LABEL" && parts.len() >= 2 {
+                continue;
+            }
+
             let opcode = parts[0].to_uppercase();
+
+            // Handle PRINT instruction
+            if opcode == "PRINT" && parts.len() >= 2 {
+                let tag = parts[1];
+
+                if let Some(content) = program.string_defs.get(tag) {
+                    println!(
+                        "Generating print instructions for tag '{}': {}",
+                        tag, content
+                    );
+
+                    // Generate instructions to print each character
+                    for ch in content.chars() {
+                        // LDI R1, char_code
+                        let ldi_inst = 0x08 | (1 << 8) | ((ch as u32) << 16);
+                        program.instructions.push(ldi_inst);
+
+                        // STR R1, 2 (to print char)
+                        let str_inst = 0x0F | (1 << 8) | (2 << 16);
+                        program.instructions.push(str_inst);
+                    }
+
+                    // Add newline if specified
+                    if parts.len() >= 3 && parts[2].to_uppercase() == "NL" {
+                        // LDI R1, 10 (newline)
+                        let ldi_inst = 0x08 | (1 << 8) | (10 << 16);
+                        program.instructions.push(ldi_inst);
+
+                        // STR R1, 2
+                        let str_inst = 0x0F | (1 << 8) | (2 << 16);
+                        program.instructions.push(str_inst);
+                    }
+
+                    continue;
+                } else {
+                    println!("Warning: String tag '{}' not found", tag);
+                    // Fall through to process as a normal instruction
+                }
+            }
+
+            // Process other instructions as before
             let mut instruction: u32 = 0;
 
             match opcode.as_str() {
@@ -109,33 +227,38 @@ impl Program {
                     instruction = Self::encode_opcode(0x08);
                     if parts.len() >= 3 {
                         instruction |= Self::parse_register(parts[1]) << 8;
-                        instruction |= Self::parse_value(parts[2]) << 16;
+                        let value = program.resolve_value_or_label(parts[2]);
+                        instruction |= value << 16;
                     }
                 }
                 "ADI" => {
                     instruction = Self::encode_opcode(0x09);
                     if parts.len() >= 3 {
                         instruction |= Self::parse_register(parts[1]) << 8;
-                        instruction |= Self::parse_value(parts[2]) << 16;
+                        let value = program.resolve_value_or_label(parts[2]);
+                        instruction |= value << 16;
                     }
                 }
                 "JMP" => {
                     instruction = Self::encode_opcode(0x0A);
                     if parts.len() >= 2 {
-                        instruction |= Self::parse_value(parts[1]) << 8;
+                        let value = program.resolve_value_or_label(parts[1]);
+                        instruction |= value << 8;
                     }
                 }
                 "BRH" => {
                     instruction = Self::encode_opcode(0x0B);
                     if parts.len() >= 3 {
                         instruction |= Self::parse_register(parts[1]) << 8;
-                        instruction |= Self::parse_value(parts[2]) << 16;
+                        let value = program.resolve_value_or_label(parts[2]);
+                        instruction |= value << 16;
                     }
                 }
                 "CAL" => {
                     instruction = Self::encode_opcode(0x0C);
                     if parts.len() >= 2 {
-                        instruction |= Self::parse_value(parts[1]) << 8;
+                        let value = program.resolve_value_or_label(parts[1]);
+                        instruction |= value << 8;
                     }
                 }
                 "RET" => instruction = Self::encode_opcode(0x0D),
@@ -150,7 +273,8 @@ impl Program {
                         } else {
                             // Traditional syntax: LOD R2 0x42
                             instruction |= Self::parse_register(parts[1]) << 8;
-                            instruction |= Self::parse_value(parts[2]) << 16;
+                            let value = program.resolve_value_or_label(parts[2]);
+                            instruction |= value << 16;
                         }
                     }
                 }
@@ -165,13 +289,15 @@ impl Program {
                         } else {
                             // Traditional syntax: STR R2 0x42
                             instruction |= Self::parse_register(parts[1]) << 8;
-                            instruction |= Self::parse_value(parts[2]) << 16;
+                            let value = program.resolve_value_or_label(parts[2]);
+                            instruction |= value << 16;
                         }
                     }
                 }
                 "BYTE" => {
                     if parts.len() >= 2 {
-                        instruction = Self::parse_value(parts[1]) & 0xFF;
+                        let value = program.resolve_value_or_label(parts[1]);
+                        instruction = value & 0xFF;
                     }
                 }
                 _ => {
@@ -184,13 +310,27 @@ impl Program {
                 }
             }
 
-            program_instructions.push(instruction);
+            program.instructions.push(instruction);
         }
 
-        Program {
-            instructions: program_instructions,
-        }
+        // Debug output
+        println!("Assembled {} instructions", program.instructions.len());
+        println!("Defined {} string tags", program.string_defs.len());
+
+        program
     }
+
+    // Resolve either a numeric value or a label reference
+    fn resolve_value_or_label(&self, value_str: &str) -> u32 {
+        // Check if this is a label reference
+        if let Some(&address) = self.labels.get(value_str) {
+            return (address as u32) & 0xFF;
+        }
+
+        // Otherwise, parse it as a numeric value
+        Self::parse_value(value_str)
+    }
+
     fn parse_memory_address(mem_str: &str) -> u32 {
         let mem_str = mem_str.trim().to_uppercase();
         if mem_str.starts_with('M') {
@@ -204,8 +344,13 @@ impl Program {
         );
         0
     }
+
     pub fn get_instructions(&self) -> &Vec<u32> {
         &self.instructions
+    }
+
+    pub fn get_labels(&self) -> &HashMap<String, usize> {
+        &self.labels
     }
 
     // Encode an opcode into the instruction
@@ -273,7 +418,19 @@ impl Program {
 
     pub fn disassemble(&self) -> String {
         let mut output = String::new();
+
+        // Create a reverse map of addresses to labels
+        let mut reverse_label_map: HashMap<usize, String> = HashMap::new();
+        for (label, &addr) in &self.labels {
+            reverse_label_map.insert(addr, label.clone());
+        }
+
         for (i, instruction) in self.instructions.iter().enumerate() {
+            // Check if this address has a label and display it
+            if let Some(label) = reverse_label_map.get(&i) {
+                output.push_str(&format!("LABEL {}\n", label));
+            }
+
             let opcode = instruction & 0xFF;
             let reg1 = (instruction >> 8) & 0xFF;
             let reg2 = (instruction >> 16) & 0xFF;
