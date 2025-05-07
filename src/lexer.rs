@@ -23,7 +23,7 @@ pub enum Token {
     LOD,
     STR,
     LABEL,
-    BYTE(u8),
+    // BYTE(u8),
 }
 
 #[derive(Clone, PartialEq, Debug, Default)]
@@ -327,12 +327,12 @@ impl Program {
                         }
                     }
                 }
-                "BYTE" => {
-                    if parts.len() >= 2 {
-                        let value = program.resolve_value_or_label(parts[1]);
-                        instruction = value & 0xFF;
-                    }
-                }
+                // "BYTE" => {
+                //     if parts.len() >= 2 {
+                //         let value = program.resolve_value_or_label(parts[1]);
+                //         instruction = value & 0xFF;
+                //     }
+                // }
                 _ => {
                     // Try to handle raw bytes (could be a label or error)
                     if let Ok(value) = Self::parse_value_result(opcode.as_str()) {

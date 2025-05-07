@@ -14,6 +14,12 @@ struct Cli {
 
 #[derive(clap::Subcommand, Debug)]
 enum Commands {
+    /// Dissasembles a compiled RASM binary
+    Dissasemble {
+        input: PathBuf,
+        #[arg(short, long)]
+        output: PathBuf,
+    },
     /// Compile a source file
     Compile {
         /// Input source file
@@ -40,10 +46,15 @@ fn main() {
             let prgm = Program::read_from_file(input).unwrap();
             vm(prgm.get_instructions());
         }
+        Commands::Dissasemble { input, output } => {
+            let prgm = Program::read_from_file(input);
+            let d = prgm.unwrap().disassemble();
+            std::fs::write(output, d).unwrap();
+        }
     }
 }
 fn vm(insts: &Vec<u32>) {
-    let mut stack_mem: [u8; 2] = [0u8; 2];
+    let mut stack_mem: [u8; 256] = [0u8; 256];
     let mut memory: [u8; 256] = [0u8; 256]; // Used like r0 to r255
     let mut store: [u8; 65536] = [0u8; 65536];
     let mut program_mem: [u8; 2048] = [0u8; 2048]; // 512 lines of code
@@ -134,7 +145,10 @@ fn vm(insts: &Vec<u32>) {
                     sp += 1;
                     pc = reg1 as usize;
                 } else {
-                    println!("Stack overflow on CAL instruction");
+                    println!(
+                        "Stack overflow on CAL instruction at PC={:04X}",
+                        (pc - 1) * 4
+                    );
                     running = false;
                 }
             }

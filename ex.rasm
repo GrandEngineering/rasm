@@ -1,12 +1,91 @@
-LDI r1 53     # Load 53 (ASCII '5') into r1
+# RASM Simple Instruction Demo
+# Demonstrates all instructions in a linear flow
 
-# Store r1 to the print address
-LDI r2 10      # PRINT_CHAR_ADDR
-STR r1 m2  # This should print '5'
-STR r2 m2
-STR r1 m65535
-LOD r6 m65535
-STR r6 m2
-STR r2 m2
+# Initialize registers
+LDI R0 0            # Load immediate 0 into R0
+LDI R1 5            # Load immediate 5 into R1
+LDI R2 3            # Load immediate 3 into R2
+LDI R3 255          # Load immediate 255 (0xFF) into R3
+LDI R4 10           # Load immediate 10 (newline) into R4
+
+# Store values to memory
+STR R1 m10          # Store R1 (5) to memory location 10
+STR R2 m11          # Store R2 (3) to memory location 11
+
+# Load value from memory
+LOD R5 m10          # Load value from memory location 10 into R5 (should be 5)
+
+# ADD demonstration
+ADD R0 R1           # R0 = R0 + R1 (0 + 5 = 5)
+
+# SUB demonstration
+LDI R6 10
+SUB R6 R1           # R6 = R6 - R1 (10 - 5 = 5)
+
+# Print a character
+LDI R7 65           # ASCII 'A'
+STR R7 m2           # Print 'A'
+
+# ADI demonstration (Add Immediate)
+ADI R7 1            # R7 = R7 + 1 (65 + 1 = 66, ASCII 'B')
+STR R7 m2           # Print 'B'
+
+# NOR demonstration
+LDI R1 0b10101010   # Binary pattern
+LDI R2 0b00001111   # Binary pattern
+NOR R1 R2           # R1 = ~(R1 | R2)
+STR R1 m2           # Print the character result
+
+# AND demonstration
+LDI R1 0b11110000   # Binary pattern
+LDI R2 0b10101010   # Binary pattern
+AND R1 R2           # R1 = R1 & R2
+STR R1 m2           # Print the character result
+
+# XOR demonstration
+LDI R1 0b11110000   # Binary pattern
+LDI R2 0b10101010   # Binary pattern
+XOR R1 R2           # R1 = R1 ^ R2
+STR R1 m2           # Print the character result
+
+# RSH demonstration (Right Shift)
+LDI R1 68           # ASCII 'D'
+RSH R1              # R1 = R1 >> 1 (68 / 2 = 34, ASCII '"')
+STR R1 m2           # Print the character result
+
+# Print a newline
+STR R4 m2           # Print newline
+
+# BRH (Branch if not zero) demonstration
+LDI R1 3            # Set counter to 3
+LDI R7 69           # ASCII 'E'
+
+LABEL branch_loop
+    STR R7 m2       # Print the character in R7
+    ADI R7 1        # Increment character (E->F->G)
+    LDI R2 1
+    SUB R1 R2       # Decrement counter
+    BRH R1 branch_loop  # Loop if counter not zero
+
+# Print a newline
+STR R4 m2           # Print newline
+
+# JMP demonstration with a forward jump
+JMP past_nop
+
+# This should be skipped by the jump
+LDI R7 88           # ASCII 'X' (should not be executed)
+STR R7 m2           # (should not be executed)
+
+LABEL past_nop
+    NOP             # No operation
+
+# Print a happy character
+LDI R7 72           # ASCII 'H'
+STR R7 m2
+
+# Print a final newline
+STR R4 m2
+
+# End program
 HALT
-BYTE
